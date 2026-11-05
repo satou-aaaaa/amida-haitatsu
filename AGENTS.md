@@ -30,6 +30,7 @@ node qa/run.mjs   # 問題の作り方（4つの大きさ×何百問、いちば
 - 同じ日はどの端末でも同じ問題にする：乱数は `sort` の比較の中で引かない（QA が見る）。少し遅れて動く処理（setTimeout）は、画面が替わっていたら何もしない。
 - 押せる所は高さ44px以上、盤の押す所（縦の道のあいだ×段）は幅320pxの7本でも40px×44px以上（QA が見る）。機能を足す・直すたびに `qa/run.mjs` に検査を足す。乱数で組む部分は何百回も作って確かめる（shared-workflows `incidents/2026-10-31-roppo-empty-village.md`）。
 - PWA（`manifest.webmanifest`・`sw.js`・`icon-*.png`）：画面のファイルを足したら `sw.js` の `SHELL` にも足し、中身を大きく変えたら `CACHE` の版を上げる。アイコンは `node tools/make-icons.cjs`、SNS 用の絵 `og.png` は `node tools/make-og.cjs`（今日の問題を入れない）。
+- 見やすさ：`</head>` の前の見やすさの設定（`<!-- a11y:begin -->`〜`end`）は shared-workflows `template/a11y/a11y.html` の写しで、ここでは直さない。`qa/a11y.mjs` も `template/qa/a11y.mjs` の写し（画面の足し方・許しは `qa/a11y.json` に理由つき）。色だけで分けない・コントラスト 4.5:1・知らせは aria-live（`#live`）・決めつけの言葉を使わない（shared-workflows `routines/game-dev.md`「だれでも遊べるように」）。はじめからの横線は両はしに●、ヒントの横線は中に○、家の下に着いた手紙の字（「✓着」「着○」）、取れなかった星は ☆、進み具合の点は形（いまの問題が高い・まだは中が空）。押す所と手紙は role=button で Enter/Space でも押せ、名前に状態を持つ。「色の見分けを助ける」（`html.a11y-cvd`）では手紙の道をカラーユニバーサルデザインの組と線の模様（`.rt.c0`〜`c6`）に替える。
 - 公開リポジトリなので、個人情報・鍵を入れない。
 
 ## 公開
