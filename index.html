@@ -285,7 +285,8 @@ function valid(p, c) {
 }
 const same = (r) => r && cur && r.date === cur.date && r.id === cur.id && r.res.length === cur.i;
 // 同じ問題で保存済みのほうが先なら、古いタブの引き方で上書きしない
-function keep() { cur.moves++; save((s) => { const r = s.runs[MODE]; if (same(r) && !(r.cur && r.cur.i === cur.i && r.cur.moves > cur.moves)) r.cur = { i: cur.i, add: cur.add, hint: cur.hint, hints: cur.hints, moves: cur.moves }; }); }
+// 同じ回数でも、保存済みのヒントの数は多いほうを残す（古いタブの保存で★を増やさない。2026-11-05 CodeRabbit）
+function keep() { cur.moves++; save((s) => { const r = s.runs[MODE], old = r && r.cur && r.cur.i === cur.i ? r.cur : null; if (same(r) && !(old && old.moves > cur.moves)) { if (old) cur.hints = Math.max(cur.hints, old.hints || 0); r.cur = { i: cur.i, add: cur.add, hint: cur.hint, hints: cur.hints, moves: cur.moves }; } }); }
 const where = () => T.run(cur.p.cell, cur.p.n, cur.add);
 const allIn = () => where().every((c, i) => c === cur.p.target[i]);
 // 盤の大きさ：横は画面の幅に合わせ、1段は44px（幅320pxの7本でも押す所は40px以上）
