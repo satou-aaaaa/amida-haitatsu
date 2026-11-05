@@ -194,6 +194,31 @@ try {
   await page.click("#hint");
   n1 = await curT(page);
   check("ヒント2回目でもう1本、ヒントはもう押せない", n1.hints === 2 && n1.hint.length === 2 && (await page.locator("#hint[disabled]").count()) === 1);
+  { // 色だけで分けない（routines/game-dev.md A1・WCAG 1.4.1）：横線の種類・着いた手紙・押す所の状態が、形・字・名前でも分かる
+    const v = await page.evaluate(() => { const g = window.__am, c = g.cur(), p = c.p, b = document.getElementById("board"), fix = p.cell.flat().filter((x) => x === 1).length;
+      const hits = [...b.querySelectorAll(".hit")], st = (r, gg) => (hits.find((h) => +h.dataset.r === r && +h.dataset.g === gg) || {}).getAttribute?.("aria-label") || "";
+      const w = g.T.run(p.cell, p.n, c.add), houses = [...b.querySelectorAll(".house")];
+      const dots = [...document.querySelectorAll(".dots i")].map((i) => i.getBoundingClientRect().height);
+      return { hintMark: b.querySelectorAll(".hintmark").length === c.hint.length, pins: b.querySelectorAll(".pin").length === fix * 2,
+        hitState: hits.every((h) => /：(横線なし|横線あり|ヒントの横線|はじめからの横線|工事中)$/.test(h.getAttribute("aria-label"))) && st(c.hint[0][0], c.hint[0][1]).endsWith("ヒントの横線"),
+        arr: houses.length === p.n && houses.every((h, col) => { const t = h.querySelector(".arr").textContent, got = w.indexOf(col); return h.classList.contains("ok") ? t === "✓着" : t === "着" + g.T.NAMES[got]; }) && houses.every((h) => h.querySelector("title")),
+        letters: [...b.querySelectorAll(".letter")].every((l, i) => l.getAttribute("role") === "button" && l.getAttribute("tabindex") === "0" && l.classList.contains("c" + i) && /家に着く/.test(l.getAttribute("aria-label"))),
+        routes: [...b.querySelectorAll("polyline")].every((e, i) => e.classList.contains("rt") && e.classList.contains("c" + i)),
+        dots: dots.length === 3 && dots[0] > dots[1] && dots[0] > dots[2] };
+    });
+    check("色だけで分けない：ヒントの横線に○・はじめからの横線の両はしに●・家の下に着いた手紙の字（✓着／着○）", v.hintMark && v.pins && v.arr, JSON.stringify(v));
+    check("色だけで分けない：押す所の名前に状態（横線なし・あり・ヒント・はじめから・工事中）、手紙は押せる部品で着く家を名前で言う", v.hitState && v.letters && v.routes, JSON.stringify(v));
+    check("色だけで分けない：進み具合の点は、いまの問題が高い（形でも分かる）", v.dots, JSON.stringify(v));
+    const cvd = await page.evaluate(() => { document.documentElement.classList.add("a11y-cvd"); const ls = [...document.querySelectorAll("#board polyline")].map((e) => getComputedStyle(e).strokeDasharray + "|" + getComputedStyle(e).stroke); document.documentElement.classList.remove("a11y-cvd"); return ls; });
+    check("「色の見分けを助ける」で手紙の道ごとに線の模様と色の組が替わる（どれもちがう）", new Set(cvd.map((x) => x.split("|")[0])).size === cvd.length && new Set(cvd.map((x) => x.split("|")[1])).size === cvd.length, cvd.join(" / "));
+    const f0 = await freeCell(page);
+    await page.focus(f0); await page.keyboard.press("Enter"); await page.waitForTimeout(120);
+    const kb = await page.evaluate(() => ({ n: window.__am.cur().add.length, live: document.getElementById("live").textContent, role: document.getElementById("live").getAttribute("role") }));
+    check("キーボード（Enter）でも横線を引け、知らせ（role=status）に文字で出る", kb.n === 3 && kb.role === "status" && /横線を引いた/.test(kb.live), JSON.stringify(kb));
+    await page.focus(f0); await page.keyboard.press(" "); await page.waitForTimeout(60);
+    await page.focus('#board .letter[data-i="1"]'); await page.keyboard.press("Enter");
+    check("キーボードで手紙を選べる（Enter）", (await curT(page)).add.length === 2 && (await page.evaluate(() => window.__am.cur().sel)) === 1);
+    await page.focus('#board .letter[data-i="1"]'); await page.keyboard.press("Enter"); }
   await page.reload(); await page.click("#go-d");
   n1 = await curT(page);
   check("途中で閉じても、引いた横線・ヒントはそのまま（続きから）", n1.hints === 2 && n1.hint.length === 2 && n1.add.length === 2 && (await page.textContent("#left")).includes("ヒント 2"));
@@ -202,6 +227,7 @@ try {
   await solveNow(page);
   n1 = await curT(page);
   check("全部届くと配達でき、ヒント2回でいちばん少ない本数なら★1", n1.done && (await page.locator(".verdict .stars .off").textContent()).length === 2 && (await page.locator("#board.win").count()) === 1);
+  check("取れなかった星は ☆（色だけで分けない）", (await page.locator(".verdict .stars .off").textContent()) === "☆☆" && (await page.locator(".verdict[role=status]").count()) === 1);
   await page.click("#next");
   // 別のタブで先に進んでいたら、古い画面の答えは足さない
   await page.evaluate((k) => { const s = JSON.parse(localStorage.getItem(k)); s.runs.d.res.push({ m: 0, h: 0 }); localStorage.setItem(k, JSON.stringify(s)); }, KEY);
@@ -351,6 +377,12 @@ try {
   await browser.close();
 }
 check("画面のエラーが無い", errors.length === 0, errors.slice(0, 3).join(" | "));
+
+{ // 見やすさ・読みやすさ・偏り（shared-workflows template/qa/a11y.mjs の写し。routines/game-dev.md「だれでも遊べるように」）
+  const { spawnSync } = await import("node:child_process");
+  const a = spawnSync(process.execPath, [path.join(root, "qa", "a11y.mjs")], { encoding: "utf8", env: process.env });
+  check("見やすさ・読みやすさの検査（qa/a11y.mjs。中身は qa-report/a11y.md）", a.status === 0, (a.stdout.match(/^- ❌.*$/gm) || []).join(" / ") || (a.status ? a.stderr.slice(-300) : ""));
+}
 
 const ng = results.filter((r) => !r.ok);
 const md = `# あみだ配達 QA\n\n${results.map((r) => `- ${r.ok ? "✅" : "❌"} ${r.name}${r.detail ? `（${r.detail}）` : ""}`).join("\n")}\n\n${ng.length ? `❌ ${ng.length}件` : `✅ ${results.length}項目すべて通過`}\n`;
