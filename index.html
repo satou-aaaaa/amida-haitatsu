@@ -353,7 +353,8 @@ const esc = (t) => String(t).replace(/&/g, "&amp;").replace(/</g, "&lt;");
 const footer = () => `<footer><a href="#" id="f-how">遊び方</a><a href="#" data-a11y-open>見やすさの設定</a><a href="#" data-hk>引き継ぎ</a><a href="${FEEDBACK}" target="_blank" rel="noopener">感想を送る</a><a href="https://ko-fi.com/satouaaaaa" target="_blank" rel="noopener">Ko-fi で応援</a></footer>`;
 function bindFooter() { const h = $("f-how"); if (h) h.onclick = (e) => { e.preventDefault(); openHow(); }; }
 function openHow() { $("fb2").href = FEEDBACK; const d = $("howto"); if (d.showModal) d.showModal(); else d.setAttribute("open", ""); }
-$("howto-ok").onclick = () => { const d = $("howto"); d.close ? d.close() : d.removeAttribute("open"); save((s) => { s.tut = true; }); };
+$("howto").addEventListener("close", () => { if (!load().tut) save((s) => { s.tut = true; }); }); // Esc で閉じても「見た」を残す
+$("howto-ok").onclick = () => { save((s) => { s.tut = true; }); const d = $("howto"); d.close ? d.close() : d.removeAttribute("open"); }; // 押したらすぐ残す（close の知らせは少し遅れて届くので、すぐ読み直すと間に合わない）
 // ホームの小さなあみだ（飾り）
 const DEMO = `<svg viewBox="0 0 200 92" width="200" height="92" aria-hidden="true" style="display:block;margin:0 auto"><g stroke="#26323a" stroke-width="3" stroke-linecap="round">${[30, 80, 130, 180].map((x) => `<line x1="${x}" y1="18" x2="${x}" y2="74"/>`).join("")}<line x1="30" y1="34" x2="80" y2="34"/><line x1="130" y1="44" x2="180" y2="44"/></g><g stroke="#c8442b" stroke-width="4" stroke-linecap="round"><line x1="80" y1="56" x2="130" y2="56"/></g><g font-size="13" font-weight="800" text-anchor="middle" fill="#26323a">${["あ", "い", "う", "え"].map((c, i) => `<text x="${30 + 50 * i}" y="12">${c}</text>`).join("")}${["い", "う", "え", "あ"].map((c, i) => `<text x="${30 + 50 * i}" y="90">🏠</text>`).join("")}</g></svg>`;
 
