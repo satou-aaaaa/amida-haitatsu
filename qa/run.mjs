@@ -113,7 +113,8 @@ check("画面にお笑いの言葉を入れない（本物っぽく）", !/お�
 const browser = await chromium.launch(process.env.CHROMIUM_PATH ? { executablePath: process.env.CHROMIUM_PATH } : {});
 const isNoise = (t) => /fonts\.(googleapis|gstatic)\.com|ERR_NAME_NOT_RESOLVED|ERR_INTERNET_DISCONNECTED|net::ERR_/.test(t);
 const errors = [];
-const FIXED = new Date(new Date(Date.now() + 9 * 3600e3).toISOString().slice(0, 10) + "T03:00:00Z");
+// QA_DATE=YYYY-MM-DD でその日の問題で回せる（日によってだけ落ちたときに再現する）
+const FIXED = new Date((process.env.QA_DATE || new Date(Date.now() + 9 * 3600e3).toISOString().slice(0, 10)) + "T03:00:00Z");
 async function newPage(w = 390, h = 844) {
   const page = await browser.newPage({ viewport: { width: w, height: h } });
   page.on("pageerror", (e) => errors.push(e.stack));
@@ -221,7 +222,8 @@ try {
     const f0 = await freeCell(page);
     await page.focus(f0); await page.keyboard.press("Enter"); await page.waitForTimeout(120);
     const kb = await page.evaluate(() => ({ n: window.__am.cur().add.length, live: document.getElementById("live").textContent, role: document.getElementById("live").getAttribute("role") }));
-    check("キーボード（Enter）でも横線を引け、知らせ（role=status）に文字で出る", kb.n === 3 && kb.role === "status" && /横線を引いた/.test(kb.live), JSON.stringify(kb));
+    // 引いた1本で全部の手紙が届く日は「全部届きます」と知らせる（2026-12-01 の盤。日によってだけ落ちた）
+    check("キーボード（Enter）でも横線を引け、知らせ（role=status）に文字で出る", kb.n === 3 && kb.role === "status" && /横線を引いた|全部届きます/.test(kb.live), JSON.stringify(kb));
     await page.focus(f0); await page.keyboard.press(" "); await page.waitForTimeout(60);
     await page.focus('#board .letter[data-i="1"]'); await page.keyboard.press("Enter");
     check("キーボードで手紙を選べる（Enter）", (await curT(page)).add.length === 2 && (await page.evaluate(() => window.__am.cur().sel)) === 1);
@@ -304,7 +306,7 @@ try {
     const broken = await pv.evaluate((k) => {
       const g = window.__am, d = g.todayKey(), list = g.dailyList(d), p = g.probOf(list[0]);
       let fix = null, blk = null, adj = null, free = null;
-      for (let r = 0; r < p.R; r++) for (let x = 0; x < p.n - 1; x++) { if (!fix && p.cell[r][x] === 1) fix = [r, x]; if (!blk && p.cell[r][x] === 2) blk = [r, x]; if (!adj && x < p.n - 2 && p.cell[r][x] === 0 && p.cell[r][x + 1] === 0) adj = [[r, x], [r, x + 1]]; if (!free && p.cell[r][x] === 0) free = [r, x]; }
+      for (let r = 0; r < p.R; r++) for (let x = 0; x < p.n - 1; x++) { if (!fix && p.cell[r][x] === 1) fix = [r, x]; if (!blk && p.cell[r][x] === 2) blk = [r, x]; if (!adj && x < p.n - 2 && p.cell[r][x] === 0 && p.cell[r][x + 1] === 0) adj = [[r, x], [r, x + 1]]; if (!free && p.cell[r][x] === 0 && p.cell[r][x - 1] !== 1 && p.cell[r][x + 1] !== 1) free = [r, x]; }
       const cases = [{ add: [fix], hint: [] }, { add: [blk], hint: [] }, { add: adj, hint: [] }, { add: [free, free], hint: [] }, { add: [[99, 0]], hint: [] }, { add: [], hint: [free], hints: 1 }, { add: "x", hint: [] }];
       const out = cases.map((cc) => g.valid(p, Object.assign({ hints: 0, moves: 1 }, cc)));
       out.push(!g.valid(p, { add: [free], hint: [free], hints: 1, moves: 2 })); // 正しいものは使う（反対にして並べる）
