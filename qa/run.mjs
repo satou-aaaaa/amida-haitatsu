@@ -222,7 +222,8 @@ try {
     const f0 = await freeCell(page);
     await page.focus(f0); await page.keyboard.press("Enter"); await page.waitForTimeout(120);
     const kb = await page.evaluate(() => ({ n: window.__am.cur().add.length, live: document.getElementById("live").textContent, role: document.getElementById("live").getAttribute("role") }));
-    check("キーボード（Enter）でも横線を引け、知らせ（role=status）に文字で出る", kb.n === 3 && kb.role === "status" && /横線を引いた/.test(kb.live), JSON.stringify(kb));
+    // 引いた1本で全部の手紙が届く日は「全部届きます」と知らせる（2026-12-01 の盤。日によってだけ落ちた）
+    check("キーボード（Enter）でも横線を引け、知らせ（role=status）に文字で出る", kb.n === 3 && kb.role === "status" && /横線を引いた|全部届きます/.test(kb.live), JSON.stringify(kb));
     await page.focus(f0); await page.keyboard.press(" "); await page.waitForTimeout(60);
     await page.focus('#board .letter[data-i="1"]'); await page.keyboard.press("Enter");
     check("キーボードで手紙を選べる（Enter）", (await curT(page)).add.length === 2 && (await page.evaluate(() => window.__am.cur().sel)) === 1);
